@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Thám Tử Game - MS System</title>
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; color: #fff; overflow: hidden; }
+        .overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; color: #333; padding: 30px; border-radius: 15px; text-align: center; z-index: 1000; width: 300px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { background: #0078d4; color: white; border: none; padding: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 10px; font-size: 16px; }
+        #game-view { display:none; position: relative; width: 100vw; height: 100vh; cursor: none; }
+        #bg { position: absolute; width: 100%; height: 100%; background: url('https://images.unsplash.com/photo-1618220179428-22790b461013?q=80&w=2560') center/cover; }
+        #flashlight { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 10; pointer-events: none; }
+        .target { position: absolute; font-size: 45px; z-index: 20; opacity: 0; transition: opacity 0.1s; user-select: none; }
+        #hud { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); color: #333; padding: 10px 20px; border-radius: 30px; z-index: 100; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="overlay">
+        <h2 style="margin-top:0">🕵️‍♂️ Tìm Vật Phẩm</h2>
+        <input type="text" id="p-name" placeholder="Họ và tên">
+        <input type="text" id="p-id" placeholder="Mã số sinh viên">
+        <button onclick="startGame()">BẮT ĐẦU</button>
+    </div>
+
+    <div id="game-view">
+        <div id="bg"></div>
+        <div id="flashlight"></div>
+        <div id="hud">Vật phẩm: <span id="count">3</span>/3</div>
+        <div class="target" id="t1" onclick="hit(this)">🔑</div>
+        <div class="target" id="t2" onclick="hit(this)">💊</div>
+        <div class="target" id="t3" onclick="hit(this)">👛</div>
+    </div>
+
+    <div id="finish-screen" class="overlay" style="display:none;">
+        <h2 style="color:#1e8e3e">🎉 XONG!</h2>
+        <p>Kết quả: <b id="final-res"></b></p>
+        <p style="font-size: 14px; color: #666;">Đang chuyển đến bảng điểm danh Microsoft...</p>
+        <div style="font-size: 30px; animation: bounce 1s infinite;">🚀</div>
+    </div>
+
+    <script>
+        // --- CHỈ CẦN THAY LINK FORM CỦA BẠN VÀO ĐÂY ---
+        const YOUR_FORM_LINK = "https://forms.office.com/r/CfaVet8SdD";
+
+        let active = false, found = 0, startTime, pathX = [];
+
+        function startGame() {
+            if(!document.getElementById('p-name').value || !document.getElementById('p-id').value) return alert("Nhập đủ tên và MSSV nhé!");
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('game-view').style.display = 'block';
+            document.querySelectorAll('.target').forEach(t => {
+                t.style.left = (Math.random() * 70 + 15) + "%";
+                t.style.top = (Math.random() * 70 + 15) + "%";
+            });
+            active = true; startTime = Date.now();
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            if(!active) return;
+            const x = e.clientX, y = e.clientY;
+            document.getElementById('flashlight').style.background = `radial-gradient(circle 130px at ${x}px ${y}px, transparent 0%, rgba(0,0,0,0.98) 100%)`;
+            document.querySelectorAll('.target').forEach(t => {
+                const r = t.getBoundingClientRect();
+                const d = Math.sqrt((x-(r.left+25))**2 + (y-(r.top+25))**2);
+                t.style.opacity = d < 130 ? 1 : 0;
+                t.style.pointerEvents = d < 130 ? 'auto' : 'none';
+            });
+            pathX.push(x);
+        });
+
+        function hit(el) {
+            el.remove(); found++;
+            document.getElementById('count').innerText = 3 - found;
+            if(found === 3) finish();
+        }
+
+        function finish() {
+            active = false;
+            const dur = ((Date.now() - startTime)/1000).toFixed(1);
+            const strategy = (Math.max(...pathX) - Math.min(...pathX)) > window.innerWidth/2 ? "Toàn cảnh" : "Cục bộ";
+            const name = document.getElementById('p-name').value;
+            const id = document.getElementById('p-id').value;
+            
+            // Tạo chuỗi kết quả tổng hợp
+            const summary = `${name} - ${id} - ${dur}s - ${strategy}`;
+
+            document.getElementById('game-view').style.display = 'none';
+            document.getElementById('finish-screen').style.display = 'block';
+            document.getElementById('final-res').innerText = `${dur}s`;
+
+            // CƠ CHẾ DỰ PHÒNG: Vì MS Forms hay lỗi pre-fill, ta sẽ copy sẵn vào bộ nhớ đệm
+            // để sinh viên chỉ việc dán (Ctrl+V) nếu ô bị trống.
+            navigator.clipboard.writeText(summary);
+
+            // Tự động chuyển đến Form
+            setTimeout(() => {
+                window.location.href = YOUR_FORM_LINK;
+            }, 2000);
+        }
+    </script>
+    <style>@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }</style>
+</body>
+</html>
